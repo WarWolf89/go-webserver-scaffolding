@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -61,5 +63,8 @@ func setupRouter() *gin.Engine {
 
 func main() {
 	r := setupRouter()
-	r.Run(":8080")
+	if err := r.Run(":8080"); err != nil {
+		slog.Error("Failed setting up webserver:", err)
+		os.Exit(1)
+	}
 }
