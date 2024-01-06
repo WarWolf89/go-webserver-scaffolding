@@ -11,26 +11,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var expected_fruits = []fruit{
+var fruits = []Fruit{
 	{ID: "1", Name: "apple", Color: "red"},
 	{ID: "2", Name: "orange", Color: "orange"},
 	{ID: "3", Name: "pineapple", Color: "yellow"},
 }
 
-var sample_fruit_new = fruit{
+var expected_fruits = []Fruit{
+	{ID: "1", Name: "apple", Color: "red"},
+	{ID: "2", Name: "orange", Color: "orange"},
+	{ID: "3", Name: "pineapple", Color: "yellow"},
+}
+
+var sample_fruit_new = Fruit{
 	ID:    "4",
 	Name:  "test",
 	Color: "test",
 }
 
-var sample_fruit_existing = fruit{
+var sample_fruit_existing = Fruit{
 	ID:    "1",
 	Name:  "apple",
 	Color: "red",
 }
 
 func TestGetAllFruits(t *testing.T) {
-	r := setupRouter()
+	r := setupClients()
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/fruits", nil)
@@ -47,7 +53,7 @@ func TestGetAllFruits(t *testing.T) {
 }
 
 func TestAddFruit(t *testing.T) {
-	r := setupRouter()
+	r := setupClients()
 	b, _ := json.Marshal(sample_fruit_new)
 	req, _ := http.NewRequest("POST", "/fruits", bytes.NewBuffer(b))
 	w := httptest.NewRecorder()
@@ -63,7 +69,7 @@ func TestAddFruit(t *testing.T) {
 
 func TestGetFruit(t *testing.T) {
 	w := httptest.NewRecorder()
-	r := setupRouter()
+	r := setupClients()
 
 	req, _ := http.NewRequest("GET", fmt.Sprintf("/fruits/%s", sample_fruit_existing.ID), nil)
 
@@ -79,7 +85,7 @@ func TestGetFruit(t *testing.T) {
 
 func TestGetFruitNone(t *testing.T) {
 	w := httptest.NewRecorder()
-	r := setupRouter()
+	r := setupClients()
 
 	req, _ := http.NewRequest("GET", fmt.Sprintf("/fruits/%s", "8"), nil)
 
