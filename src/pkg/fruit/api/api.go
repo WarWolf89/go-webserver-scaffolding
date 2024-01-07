@@ -1,18 +1,17 @@
 package api
 
 import (
-	models "csaba.almasi.per/webserver/src/pkg/models"
-	svc "csaba.almasi.per/webserver/src/pkg/svc"
+	"log/slog"
+
+	"csaba.almasi.per/webserver/src/pkg/fruit"
 
 	// ever since slog made it into the core pkg there's no need for external loggers
 
-	"encoding/json"
 	"fmt"
 	"net/http"
 
 	// validator
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 
 	// gin is the most used and standard web framework in go
 	"github.com/gin-gonic/gin"
@@ -22,11 +21,11 @@ import (
 // move to api go
 type Api struct {
 	Gengine  *gin.Engine
-	rscv     *svc.RedisService
+	rscv     fruit.Service
 	validate *validator.Validate
 }
 
-func ProvideApi(gengine *gin.Engine, rscv *svc.RedisService, validate *validator.Validate) *Api {
+func ProvideApi(gengine *gin.Engine, rscv fruit.Service, validate *validator.Validate) *Api {
 	api := &Api{
 		Gengine:  gengine,
 		rscv:     rscv,
@@ -37,6 +36,7 @@ func ProvideApi(gengine *gin.Engine, rscv *svc.RedisService, validate *validator
 
 func (api *Api) RegisterAPIEndpoints() {
 	ge := api.Gengine
+	// one liner for group assignment
 	group := ge.Group("api/v1")
 	group.GET("/fruits", api.GetFruits)
 	group.GET("/fruits/:id", api.GetFruitByID)
@@ -53,7 +53,7 @@ func (api *Api) GetFruits(c *gin.Context) {
 }
 
 func (api *Api) AddFruit(c *gin.Context) {
-	var fruit models.Fruit
+	var fruit fruit.Fruit
 
 	// Call BindJSON to bind the received JSON to
 	// a new fruit.
@@ -67,25 +67,14 @@ func (api *Api) AddFruit(c *gin.Context) {
 
 	// validate post request
 	if err := api.validate.Struct(fruit); err != nil {
+		slog.Warn("Validation failed for", "fruit", fruit, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"Request body has incorrect data: ": err.Error(),
 		})
 		return
 	}
 
-	fruit.ID = uuid.NewString()
-
-	json, err := json.Marshal(fruit)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-	c.Set("payload", json)
-	c.Set("id", fruit.ID)
-
-	id, err := api.rscv.AddFruit(c)
+	id, err := api.rscv.AddFruit(c, &fruit)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, "Failed creating fruit.")
 		return
@@ -99,6 +88,7 @@ func (api *Api) AddFruit(c *gin.Context) {
 func (api *Api) GetFruitByID(c *gin.Context) {
 
 	id, exists := c.Params.Get("id")
+	// This looks wonky but not sure if the param is accessible on context.Context
 	c.Set("id", id)
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -107,12 +97,11 @@ func (api *Api) GetFruitByID(c *gin.Context) {
 		return
 	}
 
-	f, err := api.rscv.GetFruitByID(c)
+	f, err := api.rscv.GetFruitByID(c, id)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, fmt.Sprintf("Error getting fruit with id: %s", id))
 		return
 	}
 
 	c.IndentedJSON(http.StatusOK, &f)
-
 }

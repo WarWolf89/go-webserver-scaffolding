@@ -1,6 +1,8 @@
-package models
+package fruit
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,4 +14,10 @@ type Fruit struct {
 
 type FruitHandler interface {
 	GetFruits(*gin.Context)
+}
+
+type Service interface {
+	GetFruits(ctx context.Context) ([]*Fruit, error)
+	AddFruit(ctx context.Context, fruit *Fruit) (string, error)
+	GetFruitByID(ctx context.Context, id string) (*Fruit, error)
 }
