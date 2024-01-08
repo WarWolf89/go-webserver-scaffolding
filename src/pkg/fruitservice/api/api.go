@@ -1,50 +1,43 @@
 package api
 
 import (
-	"log/slog"
-
-	"csaba.almasi.per/webserver/src/pkg/fruit"
-
 	// ever since slog made it into the core pkg there's no need for external loggers
-
 	"fmt"
+	"log/slog"
 	"net/http"
 
-	// validator
+	// gin is the most used and standard web framework in go
+
+	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
-	// gin is the most used and standard web framework in go
-	"github.com/gin-gonic/gin"
-	// went with go-redis since it's better documented than redisgo
+	"csaba.almasi.per/webserver/src/pkg/fruitservice"
 )
 
-// move to api go
 type Api struct {
 	Gengine  *gin.Engine
-	rscv     fruit.Service
+	Fsvc     fruitservice.FruitService
 	validate *validator.Validate
 }
 
-func ProvideApi(gengine *gin.Engine, rscv fruit.Service, validate *validator.Validate) *Api {
+func ProvideApi(gengine *gin.Engine, rsvc fruitservice.FruitService, validate *validator.Validate) *Api {
 	api := &Api{
 		Gengine:  gengine,
-		rscv:     rscv,
+		Fsvc:     rsvc,
 		validate: validate,
 	}
 	return api
 }
 
 func (api *Api) RegisterAPIEndpoints() {
-	ge := api.Gengine
-	// one liner for group assignment
-	group := ge.Group("api/v1")
-	group.GET("/fruits", api.GetFruits)
-	group.GET("/fruits/:id", api.GetFruitByID)
-	group.POST("/fruits", api.AddFruit)
+	v1 := api.Gengine.Group("api/v1")
+	v1.GET("/fruits", api.GetFruits)
+	v1.GET("/fruits:id", api.GetFruitByID)
+	v1.POST("/fruits", api.AddFruit)
 }
 
 func (api *Api) GetFruits(c *gin.Context) {
-	fruits, err := api.rscv.GetFruits(c)
+	fruits, err := api.Fsvc.GetFruits(c)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, "Error when fetching all fruits.")
 		return
@@ -53,11 +46,9 @@ func (api *Api) GetFruits(c *gin.Context) {
 }
 
 func (api *Api) AddFruit(c *gin.Context) {
-	var fruit fruit.Fruit
+	var fruit fruitservice.Fruit
 
-	// Call BindJSON to bind the received JSON to
-	// a new fruit.
-
+	// Call BindJSON to bind the received JSON to a new fruit.
 	if err := c.ShouldBind(&fruit); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -65,7 +56,7 @@ func (api *Api) AddFruit(c *gin.Context) {
 		return
 	}
 
-	// validate post request
+	// Validate post request
 	if err := api.validate.Struct(fruit); err != nil {
 		slog.Warn("Validation failed for", "fruit", fruit, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -74,22 +65,20 @@ func (api *Api) AddFruit(c *gin.Context) {
 		return
 	}
 
-	id, err := api.rscv.AddFruit(c, &fruit)
+	id, err := api.Fsvc.AddFruit(c, &fruit)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, "Failed creating fruit.")
 		return
 	}
 
-	// TODO add actual redirect URL to header instead of placeholder
-	c.Header("Location", fmt.Sprintf("location/path/%s", id))
+	// Full url is cleaner, but this should be good enough
+	c.Header("Location", fmt.Sprintf("v1/api/fruits:%s", id))
 	c.IndentedJSON(http.StatusCreated, id)
 }
 
 func (api *Api) GetFruitByID(c *gin.Context) {
 
 	id, exists := c.Params.Get("id")
-	// This looks wonky but not sure if the param is accessible on context.Context
-	c.Set("id", id)
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"no ID provided as a pathparam": id,
@@ -97,8 +86,9 @@ func (api *Api) GetFruitByID(c *gin.Context) {
 		return
 	}
 
-	f, err := api.rscv.GetFruitByID(c, id)
+	f, err := api.Fsvc.GetFruitByID(c, id)
 	if err != nil {
+		slog.Error("Failed getting fruit from Redis", "error", err)
 		c.IndentedJSON(http.StatusInternalServerError, fmt.Sprintf("Error getting fruit with id: %s", id))
 		return
 	}

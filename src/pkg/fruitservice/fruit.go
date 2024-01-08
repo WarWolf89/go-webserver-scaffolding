@@ -1,9 +1,7 @@
-package fruit
+package fruitservice
 
 import (
 	"context"
-
-	"github.com/gin-gonic/gin"
 )
 
 type Fruit struct {
@@ -12,11 +10,7 @@ type Fruit struct {
 	Color string `json:"color" validate:"alpha"`
 }
 
-type FruitHandler interface {
-	GetFruits(*gin.Context)
-}
-
-type Service interface {
+type FruitService interface {
 	GetFruits(ctx context.Context) ([]*Fruit, error)
 	AddFruit(ctx context.Context, fruit *Fruit) (string, error)
 	GetFruitByID(ctx context.Context, id string) (*Fruit, error)

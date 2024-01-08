@@ -1,4 +1,4 @@
-package fruitimpl
+package fruitstore
 
 import (
 	"context"
@@ -9,50 +9,41 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
-	"csaba.almasi.per/webserver/src/pkg/fruit"
+	"csaba.almasi.per/webserver/src/pkg/fruitservice"
 )
 
-type RedisService struct {
+// Basket is the  primary grouping hash key we use for all the fruits in Redis
+const primary_key = "basket"
+
+type RedisStore struct {
 	Client *redis.Client
 }
 
-// type RedisStore struct {
-// 	Client *redis.Client
-// }
-
-// type SQLStore struct {
-// 	client *sql.DB
-// }
-
-// type FruitStore interface {
-// 	GetFruit(context.Context) (*fruit.Fruit, error)
-// }
-
 // interface compliance check https://github.com/uber-go/guide/blob/master/style.md#verify-interface-compliance
-var _ fruit.Service = (*RedisService)(nil)
+var _ fruitservice.FruitService = (*RedisStore)(nil)
 
-func ProvideSVC() fruit.Service {
+func ProvideSVC() fruitservice.FruitService {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
-	rsvc := &RedisService{
+	rsvc := &RedisStore{
 		Client: client,
 	}
 	return rsvc
 }
 
-func (rsvc *RedisService) GetFruits(ctx context.Context) ([]*fruit.Fruit, error) {
-	fruits := []*fruit.Fruit{}
-	val, err := rsvc.Client.HGetAll(ctx, "basket").Result()
+func (rsvc *RedisStore) GetFruits(ctx context.Context) ([]*fruitservice.Fruit, error) {
+	fruits := []*fruitservice.Fruit{}
+	val, err := rsvc.Client.HGetAll(ctx, primary_key).Result()
 	if err != nil {
 		slog.Error("Failed fetching item keys", err)
 		return nil, err
 	}
 
 	for _, item := range val {
-		fruit := &fruit.Fruit{}
+		fruit := &fruitservice.Fruit{}
 		err := json.Unmarshal([]byte(item), fruit)
 		if err != nil {
 			slog.Error("Failed marshaling items", err)
@@ -63,7 +54,7 @@ func (rsvc *RedisService) GetFruits(ctx context.Context) ([]*fruit.Fruit, error)
 	return fruits, nil
 }
 
-func (rsvc *RedisService) AddFruit(ctx context.Context, fruit *fruit.Fruit) (string, error) {
+func (rsvc *RedisStore) AddFruit(ctx context.Context, fruit *fruitservice.Fruit) (string, error) {
 	fruit.ID = uuid.NewString()
 
 	json, err := json.Marshal(fruit)
@@ -72,8 +63,8 @@ func (rsvc *RedisService) AddFruit(ctx context.Context, fruit *fruit.Fruit) (str
 		return "", err
 	}
 
-	// Basket is the grouping hash key we use for all the fruits
-	if err := rsvc.Client.HSet(ctx, "basket", fmt.Sprintf("fruit:%s", fruit.ID), json).Err(); err != nil {
+	// gin gets patparah with : hence setting the key with it
+	if err := rsvc.Client.HSet(ctx, primary_key, fmt.Sprintf("fruit:%s", fruit.ID), json).Err(); err != nil {
 		slog.Error("Error writing to Redis:", err)
 		return "", err
 	}
@@ -81,11 +72,11 @@ func (rsvc *RedisService) AddFruit(ctx context.Context, fruit *fruit.Fruit) (str
 	return fruit.ID, nil
 }
 
-func (rsvc *RedisService) GetFruitByID(ctx context.Context, id string) (*fruit.Fruit, error) {
+func (rsvc *RedisStore) GetFruitByID(ctx context.Context, id string) (*fruitservice.Fruit, error) {
 
-	fruit := &fruit.Fruit{}
+	fruit := &fruitservice.Fruit{}
 
-	val, err := rsvc.Client.HGet(ctx, "basket", fmt.Sprintf("fruit:%s", id)).Result()
+	val, err := rsvc.Client.HGet(ctx, primary_key, fmt.Sprintf("fruit%s", id)).Result()
 	if err != nil {
 		slog.Error("Error from Redis lookup for fruit:", id, "\n with error:", err)
 		return nil, err
@@ -93,7 +84,7 @@ func (rsvc *RedisService) GetFruitByID(ctx context.Context, id string) (*fruit.F
 
 	err = json.Unmarshal([]byte(val), &fruit)
 	if err != nil {
-		slog.Error("Failed marshaling items:", val, "with error:", err)
+		slog.Error("Failed marshaling items:", "value", val, "error:", err)
 		return nil, err
 	}
 	return fruit, nil
