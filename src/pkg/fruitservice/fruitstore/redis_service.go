@@ -63,7 +63,6 @@ func (rsvc *RedisStore) AddFruit(ctx context.Context, fruit *fruitservice.Fruit)
 		return "", err
 	}
 
-	// gin gets patparah with : hence setting the key with it
 	if err := rsvc.Client.HSet(ctx, primary_key, fmt.Sprintf("fruit:%s", fruit.ID), json).Err(); err != nil {
 		slog.Error("Error writing to Redis:", err)
 		return "", err
@@ -75,7 +74,7 @@ func (rsvc *RedisStore) AddFruit(ctx context.Context, fruit *fruitservice.Fruit)
 func (rsvc *RedisStore) GetFruitByID(ctx context.Context, id string) (*fruitservice.Fruit, error) {
 
 	fruit := &fruitservice.Fruit{}
-
+	// gin gets patparam with ':' hence omitting here, the key here is fruit:<id>
 	val, err := rsvc.Client.HGet(ctx, primary_key, fmt.Sprintf("fruit%s", id)).Result()
 	if err != nil {
 		slog.Error("Error from Redis lookup for fruit:", id, "\n with error:", err)

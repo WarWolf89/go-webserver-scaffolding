@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-
 	// gin is the most used and standard web framework in go
 
 	"github.com/gin-gonic/gin"
@@ -39,10 +38,10 @@ func (api *Api) RegisterAPIEndpoints() {
 func (api *Api) GetFruits(c *gin.Context) {
 	fruits, err := api.Fsvc.GetFruits(c)
 	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, "Error when fetching all fruits.")
+		c.JSON(http.StatusInternalServerError, "Error when fetching all fruits.")
 		return
 	}
-	c.IndentedJSON(http.StatusOK, fruits)
+	c.JSON(http.StatusOK, fruits)
 }
 
 func (api *Api) AddFruit(c *gin.Context) {
@@ -67,13 +66,12 @@ func (api *Api) AddFruit(c *gin.Context) {
 
 	id, err := api.Fsvc.AddFruit(c, &fruit)
 	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, "Failed creating fruit.")
+		c.JSON(http.StatusInternalServerError, "Failed creating fruit.")
 		return
 	}
-
 	// Full url is cleaner, but this should be good enough
 	c.Header("Location", fmt.Sprintf("v1/api/fruits:%s", id))
-	c.IndentedJSON(http.StatusCreated, id)
+	c.JSON(http.StatusCreated, "OK")
 }
 
 func (api *Api) GetFruitByID(c *gin.Context) {
@@ -89,9 +87,9 @@ func (api *Api) GetFruitByID(c *gin.Context) {
 	f, err := api.Fsvc.GetFruitByID(c, id)
 	if err != nil {
 		slog.Error("Failed getting fruit from Redis", "error", err)
-		c.IndentedJSON(http.StatusInternalServerError, fmt.Sprintf("Error getting fruit with id: %s", id))
+		c.JSON(http.StatusInternalServerError, fmt.Sprintf("Error getting fruit with id: %s", id))
 		return
 	}
 
-	c.IndentedJSON(http.StatusOK, &f)
+	c.JSON(http.StatusOK, &f)
 }

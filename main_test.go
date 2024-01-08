@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +19,21 @@ import (
 	"csaba.almasi.per/webserver/src/pkg/fruitservice/fruitstore"
 )
 
+var sample_fruit_new = fruitservice.Fruit{
+	Name:  "orange",
+	Color: "orange",
+}
+
+var sample_fruit_existing = fruitservice.Fruit{
+	Name:  "apple",
+	Color: "red",
+}
+
+var faulty_fruit = fruitservice.Fruit{
+	Name:  "89897899",
+	Color: "67854687",
+}
+
 type FruitTestSuite struct {
 	suite.Suite
 	api *api.Api
@@ -27,7 +44,6 @@ type FruitTestSuite struct {
 // Set Up testify suite
 func (s *FruitTestSuite) SetupSuite() {
 	validate := validator.New(validator.WithRequiredStructEnabled())
-	s.w = httptest.NewRecorder()
 	s.api = api.ProvideApi(gin.Default(), fruitstore.ProvideSVC(), validate)
 	s.api.RegisterAPIEndpoints()
 	gin.SetMode(gin.TestMode)
@@ -42,9 +58,18 @@ func (s *FruitTestSuite) SetupTest() {
 	// Create a gin context per test
 	s.ctx = gin.CreateTestContextOnly(s.w, s.api.Gengine)
 
+	// New to create a new recorder before every run since sporadic memory issues pop up
+	s.w = httptest.NewRecorder()
+
 	// Flush the Redis instance before every test
 	rc.Client.FlushAll(s.ctx)
 
+}
+
+func (s *FruitTestSuite) TearDownSuite() {
+	if err := s.api.Fsvc.(*fruitstore.RedisStore).Client.Conn().Close(); err != nil {
+		s.Error(err)
+	}
 }
 
 // In order for 'go test' to run this suite, we need to create
@@ -53,21 +78,10 @@ func TestFruitTestSuite(t *testing.T) {
 	suite.Run(t, new(FruitTestSuite))
 }
 
-var expected_fruits = []fruitservice.Fruit{}
-
-var sample_fruit_new = fruitservice.Fruit{
-	ID:    "4",
-	Name:  "test",
-	Color: "test",
-}
-
-var sample_fruit_existing = fruitservice.Fruit{
-	ID:    "1",
-	Name:  "apple",
-	Color: "red",
-}
-
 func (s *FruitTestSuite) TestGetAllFruits() {
+
+	expected_fruits := []fruitservice.Fruit{}
+	actual_fruits := []fruitservice.Fruit{}
 
 	_, err := s.api.Fsvc.AddFruit(s.ctx, &sample_fruit_existing)
 	if err != nil {
@@ -82,40 +96,84 @@ func (s *FruitTestSuite) TestGetAllFruits() {
 	}
 	s.api.Gengine.ServeHTTP(s.w, req)
 
-	actual_fruits := []fruitservice.Fruit{}
 	if err := json.Unmarshal(s.w.Body.Bytes(), &actual_fruits); err != nil {
-		fmt.Println(err)
-		panic(err)
+		s.Error(err)
 	}
 
 	s.Equal(200, s.w.Code)
 	s.Equal(expected_fruits, actual_fruits)
 }
 
-//
+func (s *FruitTestSuite) TestGetFruitByID() {
+	id, err := s.api.Fsvc.AddFruit(s.ctx, &sample_fruit_existing)
+	if err != nil {
+		s.Error(err)
+	}
 
-// func TestGetFruit(t *testing.T) {
-// 	w := httptest.NewRecorder()
-// 	r := setupClients()
+	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/fruits:%s", id), nil)
+	if err != nil {
+		s.Error(err)
+	}
+	sample_fruit_existing.ID = id
 
-// 	req, _ := http.NewRequest("GET", fmt.Sprintf("/fruits/%s", sample_fruit_existing.ID), nil)
+	s.api.Gengine.ServeHTTP(s.w, req)
 
-// 	r.ServeHTTP(w, req)
-// 	resp := fruit{}
-// 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-// 		fmt.Println(err)
-// 		panic(err)
-// 	}
-// 	assert.Equal(t, 200, w.Code)
-// 	assert.Equal(t, sample_fruit_existing, resp)
-// }
+	var actual_fruit fruitservice.Fruit
 
-// func TestGetFruitNone(t *testing.T) {
-// 	w := httptest.NewRecorder()
-// 	r := setupClients()
+	if err := json.Unmarshal(s.w.Body.Bytes(), &actual_fruit); err != nil {
+		fmt.Println(err)
+		panic(err)
+	}
 
-// 	req, _ := http.NewRequest("GET", fmt.Sprintf("/fruits/%s", "8"), nil)
+	s.Equal(200, s.w.Code)
+	s.Equal(sample_fruit_existing, actual_fruit)
 
-// 	r.ServeHTTP(w, req)
-// 	assert.Equal(t, 404, w.Code)
-// }
+}
+
+func (s *FruitTestSuite) TestAddFruit() {
+
+	rb, err := json.Marshal(sample_fruit_new)
+	if err != nil {
+		s.Error(err)
+	}
+
+	req, err := http.NewRequest("POST", "/api/v1/fruits", bytes.NewBuffer(rb))
+	if err != nil {
+		s.Error(err)
+	}
+	req.Header.Set("Content-type", "application/json")
+
+	s.api.Gengine.ServeHTTP(s.w, req)
+
+	// Get the ID from the header of the response
+	id := strings.ReplaceAll(s.w.Result().Header.Get("Location"), "v1/api/fruits", "")
+
+	// Make a direct call to Redis and see if fruit was actually created with the values we passed
+	actual, err := s.api.Fsvc.GetFruitByID(s.ctx, id)
+	if err != nil {
+		s.Error(err)
+	}
+
+	s.Equal(201, s.w.Result().StatusCode)
+	s.Equal(fmt.Sprintf("v1/api/fruits%s", id), s.w.Result().Header.Get("Location"))
+	s.Equal(sample_fruit_new.Name, actual.Name)
+	s.Equal(sample_fruit_new.Color, actual.Color)
+
+}
+
+func (s *FruitTestSuite) TestAddFaultyFruit() {
+	rb, err := json.Marshal(faulty_fruit)
+	if err != nil {
+		s.Error(err)
+	}
+
+	req, err := http.NewRequest("POST", "/api/v1/fruits", bytes.NewBuffer(rb))
+	if err != nil {
+		s.Error(err)
+	}
+	req.Header.Set("Content-type", "application/json")
+
+	s.api.Gengine.ServeHTTP(s.w, req)
+
+	s.Equal(400, s.w.Result().StatusCode)
+}
