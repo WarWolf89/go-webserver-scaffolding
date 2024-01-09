@@ -90,7 +90,7 @@ func (api *Api) GetFruitByID(c *gin.Context) {
 
 	// need to discern between the redis error of "there's no such key, nothing was found"
 	// and all other errors since I'm not fetching the integer return value for count from the redis call
-	if strings.Contains(err.Error(), "redis: nil") {
+	if err != nil && strings.Contains(err.Error(), "redis: nil") {
 		c.JSON(http.StatusNotFound, fmt.Sprintf("No fruit with id: %s", id))
 		return
 	} else if err != nil {
