@@ -78,7 +78,7 @@ func (rsvc *RedisStore) GetFruitByID(ctx context.Context, id string) (*fruitserv
 	// gin gets patparam with ':' hence omitting here, the key here is fruit:<id>
 	val, err := rsvc.Client.HGet(ctx, primary_key, fmt.Sprintf("fruit%s", id)).Result()
 	if err != nil {
-		slog.Error("Error from Redis lookup for fruit:", id, "\n with error:", err)
+		slog.Error("Error from Redis lookup for fruit:", id, "with error:", err)
 		return nil, err
 	}
 

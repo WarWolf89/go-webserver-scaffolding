@@ -13,7 +13,7 @@ jobs:
     services:
       # Label used to access the service container
       redis:
-        # Docker Hub image
+        # Docker Hub image, uses the default :latest tag, in aprod setting ofc you want to pin this
         image: redis
         # Set health checks to wait until redis has started
         options: >-

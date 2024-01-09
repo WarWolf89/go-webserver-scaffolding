@@ -1,12 +1,12 @@
 # Builder Image
 FROM golang:1.21 as builder
 
-WORKDIR /src
-COPY go.mod go.sum ./
+WORKDIR /app
+COPY . ./
 RUN go mod tidy
 RUN go mod download
 
-COPY . ./
+
 
 # Turn off CGO since that can result in dynamic links to libc/libmusl which creates problems if you 
 # try to run the binary on scratch.
@@ -14,6 +14,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/server ./main.go
 
 # Run on secure minimal base image, warning: there's no shell on this!
 FROM scratch
+
+COPY --from=builder app/config ./config
 
 COPY --from=builder /bin/server /bin/server
 

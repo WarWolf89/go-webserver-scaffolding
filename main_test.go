@@ -188,3 +188,15 @@ func (s *FruitTestSuite) TestAddFaultyFruit() {
 
 	s.Equal(400, s.w.Result().StatusCode)
 }
+
+func (s *FruitTestSuite) TestGetFruitByIDNoSuchFruit() {
+	id := "NOSUCHFRUIT"
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/fruits:%s", id), nil)
+	if err != nil {
+		s.Error(err)
+	}
+	s.api.Gengine.ServeHTTP(s.w, req)
+	s.Equal(404, s.w.Code)
+
+}

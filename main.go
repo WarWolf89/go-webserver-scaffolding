@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+
 	// gin is the most used and standard web framework in go
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,9 @@ import (
 
 func main() {
 
+	// Set gin to release mode,could probably be extracted to config but leaving it like this now
+	gin.SetMode(gin.ReleaseMode)
+
 	config, err := util.LoadConfig("prod_config")
 	// exit immediately on non-recoverable(e.g. path issue) config load errors
 	if err != nil {
@@ -24,11 +28,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Using the default Engine here, would probably be best to plug in the slog middleware in prod
 	gengine := gin.Default()
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	fsvc := fruitstore.ProvideRedisStore(config)
 
-	// need to type assert since fsvc is an interface
 	// close redis connection since the client creation is called in main
 	defer func() {
 		if err := fsvc.Client.Conn().Close(); err != nil {
