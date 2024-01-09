@@ -3,6 +3,7 @@ FROM golang:1.21 as builder
 
 WORKDIR /src
 COPY go.mod go.sum ./
+RUN go mod tidy
 RUN go mod download
 
 COPY . ./
@@ -18,6 +19,6 @@ COPY --from=builder /bin/server /bin/server
 
 # Doesn't do anything, but it's nice to have so that the engineer running the container knows 
 # what port is expected to be published https://docs.docker.com/engine/reference/builder/#expose
-EXPOSE 8080
+EXPOSE 8081
 
 CMD ["/bin/server"]

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-
 	// gin is the most used and standard web framework in go
 
 	"github.com/gin-gonic/gin"
