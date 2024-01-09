@@ -27,18 +27,8 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract metadata (tags, labels) for Docker
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-    # Image is tagged with the branch name, so will look like 
-    # ghcr.io/warwolf89/go-webserver-scaffolding:main
-    # In a prod setting you want semantic versioning etc.
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: .
         push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: user/app:latest
