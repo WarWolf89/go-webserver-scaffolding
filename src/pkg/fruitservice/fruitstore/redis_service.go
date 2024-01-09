@@ -10,6 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"csaba.almasi.per/webserver/src/pkg/fruitservice"
+	"csaba.almasi.per/webserver/src/pkg/util"
 )
 
 // Basket is the  primary grouping hash key we use for all the fruits in Redis
@@ -22,11 +23,11 @@ type RedisStore struct {
 // interface compliance check https://github.com/uber-go/guide/blob/master/style.md#verify-interface-compliance
 var _ fruitservice.FruitService = (*RedisStore)(nil)
 
-func ProvideSVC() fruitservice.FruitService {
+func ProvideSVC(c *util.AppConfig) fruitservice.FruitService {
 	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:     c.RedisAddr,
+		Password: c.RedisPWD, // no password set
+		DB:       c.RedisDB,  // use default DB
 	})
 	rsvc := &RedisStore{
 		Client: client,

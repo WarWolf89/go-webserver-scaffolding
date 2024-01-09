@@ -17,6 +17,7 @@ import (
 	"csaba.almasi.per/webserver/src/pkg/fruitservice"
 	"csaba.almasi.per/webserver/src/pkg/fruitservice/api"
 	"csaba.almasi.per/webserver/src/pkg/fruitservice/fruitstore"
+	"csaba.almasi.per/webserver/src/pkg/util"
 )
 
 var sample_fruit_new = fruitservice.Fruit{
@@ -43,8 +44,12 @@ type FruitTestSuite struct {
 
 // Set Up testify suite
 func (s *FruitTestSuite) SetupSuite() {
+	config, err := util.LoadConfig("test_config")
+	if err != nil {
+		s.Error(err)
+	}
 	validate := validator.New(validator.WithRequiredStructEnabled())
-	s.api = api.ProvideApi(gin.Default(), fruitstore.ProvideSVC(), validate)
+	s.api = api.ProvideApi(gin.Default(), fruitstore.ProvideSVC(config), validate)
 	s.api.RegisterAPIEndpoints()
 	gin.SetMode(gin.TestMode)
 
@@ -67,6 +72,12 @@ func (s *FruitTestSuite) SetupTest() {
 }
 
 func (s *FruitTestSuite) TearDownSuite() {
+	rc := s.api.Fsvc.(*fruitstore.RedisStore)
+
+	// Flush the Redis instance after tests
+	rc.Client.FlushAll(s.ctx)
+
+	// Close connection
 	if err := s.api.Fsvc.(*fruitstore.RedisStore).Client.Conn().Close(); err != nil {
 		s.Error(err)
 	}

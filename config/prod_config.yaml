@@ -1,0 +1,4 @@
+redisAddr: "localhost:6379" 
+redisPWD: ""
+redisDB: "0"
+serverPort: 8081

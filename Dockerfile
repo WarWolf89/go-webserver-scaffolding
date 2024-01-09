@@ -5,7 +5,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY main.go ./
+COPY . ./
 
 # Turn off CGO since that can result in dynamic links to libc/libmusl which creates problems if you 
 # try to run the binary on scratch.
