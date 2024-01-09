@@ -1,4 +1,4 @@
-redisAddr: "localhost:6379" 
+redisAddr: "127.0.0.1:6379" 
 redisPWD: ""
 redisDB: "0"
 serverPort: 8080
