@@ -23,7 +23,7 @@ type RedisStore struct {
 // interface compliance check https://github.com/uber-go/guide/blob/master/style.md#verify-interface-compliance
 var _ fruitservice.FruitService = (*RedisStore)(nil)
 
-func ProvideSVC(c *util.AppConfig) fruitservice.FruitService {
+func ProvideRedisStore(c *util.AppConfig) *RedisStore {
 	client := redis.NewClient(&redis.Options{
 		Addr:     c.RedisAddr,
 		Password: c.RedisPWD, // no password set

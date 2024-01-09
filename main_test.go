@@ -49,7 +49,7 @@ func (s *FruitTestSuite) SetupSuite() {
 		s.Error(err)
 	}
 	validate := validator.New(validator.WithRequiredStructEnabled())
-	s.api = api.ProvideApi(gin.Default(), fruitstore.ProvideSVC(config), validate)
+	s.api = api.ProvideApi(gin.Default(), fruitstore.ProvideRedisStore(config), validate)
 	s.api.RegisterAPIEndpoints()
 	gin.SetMode(gin.TestMode)
 

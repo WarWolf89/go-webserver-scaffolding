@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+
 	// gin is the most used and standard web framework in go
 
 	"github.com/gin-gonic/gin"
@@ -26,12 +27,12 @@ func main() {
 
 	gengine := gin.Default()
 	validate := validator.New(validator.WithRequiredStructEnabled())
-	fsvc := fruitstore.ProvideSVC(config)
+	fsvc := fruitstore.ProvideRedisStore(config)
 
 	// need to type assert since fsvc is an interface
 	// close redis connection since the client creation is called in main
 	defer func() {
-		if err := fsvc.(*fruitstore.RedisStore).Client.Conn().Close(); err != nil {
+		if err := fsvc.Client.Conn().Close(); err != nil {
 			slog.Error("Failed to close Redis connection:", "error", err)
 		}
 	}()
