@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	// gin is the most used and standard web framework in go
 
@@ -86,7 +87,13 @@ func (api *Api) GetFruitByID(c *gin.Context) {
 	}
 
 	f, err := api.Fsvc.GetFruitByID(c, id)
-	if err != nil {
+
+	// need to discern between the redis error of "there's no such key, nothing was found"
+	// and all other errors since I'm not fetching the integer return value for count from the redis call
+	if err != nil && strings.Contains(err.Error(), "redis: nil") {
+		c.JSON(http.StatusNotFound, fmt.Sprintf("No fruit with id: %s", id))
+		return
+	} else if err != nil {
 		slog.Error("Failed getting fruit from Redis", "error", err)
 		c.JSON(http.StatusInternalServerError, fmt.Sprintf("Error getting fruit with id: %s", id))
 		return
